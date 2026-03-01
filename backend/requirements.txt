@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+opencv-python
+pyzbar
+Pillow
+pandas
+openpyxl
+python-multipart
+google-genai
