@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Initialize the OpenAI client pointing to OpenRouter
-api_key = os.environ.get("OPENROUTER_API_KEY")
+api_key = os.environ.get("OPENROUTER_API_KEY", "missing_key_please_set_in_render")
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
