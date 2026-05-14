@@ -1,26 +1,33 @@
 import json
 import os
-from google import genai
-import PIL.Image
+from openai import OpenAI
+import base64
 
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Initialize the new Gemini API client
-# Get your FREE API key here: https://aistudio.google.com/
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+# Initialize the OpenAI client pointing to OpenRouter
+api_key = os.environ.get("OPENROUTER_API_KEY")
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=api_key,
+)
+
+def encode_image(image_path):
+    """Encodes an image to base64 for the API."""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 def process_exam_paper(image_path):
     """
-    Sends the exam paper to Google Gemini to extract both the Student Info AND the Grade.
-    This replaces both the QR scanner and the PyTorch model with a single, highly accurate API call.
+    Sends the exam paper to an OpenRouter model to extract both the Student Info AND the Grade.
+    This replaces both the QR scanner and the PyTorch model with a single API call.
     """
     try:
-        # Load the image using Pillow (required by the Gemini SDK)
-        img = PIL.Image.open(image_path)
+        # Convert image to base64
+        base64_image = encode_image(image_path)
         
         prompt = """
         You are an expert OCR AI specifically trained to read graded exam papers. 
@@ -31,14 +38,31 @@ def process_exam_paper(image_path):
         {"student_info": {"name": "Text", "surname": "Text", "group": "Text"}, "mark": 0.0}
         """
 
-        # Ask Gemini to process the image and prompt
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[prompt, img]
+        # Ask OpenRouter to process the image and prompt
+        # You can change this model to any free vision model on OpenRouter (e.g. google/gemini-2.5-flash)
+        response = client.chat.completions.create(
+            model="google/gemini-2.5-flash", 
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ]
         )
         
         # Grab the text response
-        result_string = response.text
+        result_string = response.choices[0].message.content
         
         # Clean up the output in case the AI wraps it in markdown (```json ... ```)
         if "```json" in result_string:
@@ -49,7 +73,7 @@ def process_exam_paper(image_path):
         # Parse the JSON string into a Python dictionary
         extracted_data = json.loads(result_string)
         
-        print("🧠 Gemini Extracted Data:", extracted_data)
+        print("🧠 OpenRouter Extracted Data:", extracted_data)
         
         # Return format expected by main.py and Flutter
         return {
@@ -59,9 +83,10 @@ def process_exam_paper(image_path):
         }
 
     except Exception as e:
-        print(f"❌ Gemini Error: {e}")
+        print(f"❌ OpenRouter Error: {e}")
         return {
              "status": "error",
              "qr_data": {"error": str(e)},
              "mark_data": {"error": str(e)}
         }
+
