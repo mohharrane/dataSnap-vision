@@ -27,6 +27,11 @@ class StudentResult(BaseModel):
     module: str
     mark: float
 
+@app.get("/")
+async def health_check():
+    """Endpoint for UptimeRobot to ping to keep the server awake."""
+    return JSONResponse(content={"status": "Server is awake and running!"})
+
 @app.post("/scan")
 async def scan_paper(file: UploadFile = File(...)):
     """
